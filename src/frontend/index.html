@@ -29,11 +29,40 @@
             padding: 20px 30px;
             margin-bottom: 20px;
             box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            flex: 1;
+        }
+
+        .header-right {
+            display: flex;
+            gap: 10px;
+            align-items: center;
         }
 
         h1 {
             color: #333;
             margin-bottom: 10px;
+        }
+
+        .logout-button {
+            background: #ef4444;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .logout-button:hover {
+            background: #dc2626;
         }
 
         .status {
@@ -225,8 +254,13 @@
 <body>
     <div class="container">
         <header>
-            <h1>🚀 K17 CTF Bot Control Panel</h1>
-            <span class="status" id="bot-status">Checking...</span>
+            <div class="header-left">
+                <h1>🚀 K17 CTF Bot Control Panel</h1>
+                <span class="status" id="bot-status">Checking...</span>
+            </div>
+            <div class="header-right">
+                <button class="logout-button" onclick="logout()">Logout</button>
+            </div>
         </header>
 
         <div class="controls">
@@ -281,9 +315,30 @@
     <script>
         let cacheData = {};
 
+        // Handle authentication errors
+        async function handleAuthError(response) {
+            if (response.status === 401) {
+                window.location.href = '/';
+                return true;
+            }
+            return false;
+        }
+
+        async function logout() {
+            try {
+                await fetch('/api/logout', { method: 'POST' });
+                window.location.href = '/';
+            } catch (error) {
+                console.error('Logout error:', error);
+                window.location.href = '/';
+            }
+        }
+
         async function checkBotStatus() {
             try {
                 const response = await fetch('/api/health');
+                if (await handleAuthError(response)) return;
+                
                 const status = document.getElementById('bot-status');
                 if (response.ok) {
                     status.className = 'status online';
@@ -302,6 +357,8 @@
         async function loadCache() {
             try {
                 const response = await fetch('/api/cache');
+                if (await handleAuthError(response)) return;
+                
                 const result = await response.json();
                 
                 if (result.status === 'success') {

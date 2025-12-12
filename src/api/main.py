@@ -3,14 +3,16 @@ FastAPI web interface for K17 CTF Bot control panel
 Communicates with the bot via IPC to manage leaderboards
 """
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Depends, Cookie
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
 import sys
 import os
 from typing import Optional
+import secrets
+from datetime import datetime, timedelta
 
 # Add parent directory to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
@@ -32,6 +34,42 @@ app.add_middleware(
 # Database connection
 db = DatabaseManager()
 
+# Authentication configuration
+WEB_USERNAME = os.getenv('WEB_USERNAME', 'admin')
+WEB_PASSWORD = os.getenv('WEB_PASSWORD', 'changeme')
+
+# Session storage (in-memory, will reset on restart)
+active_sessions = {}  # {session_token: expiry_time}
+
+def create_session() -> str:
+    """Create a new session token"""
+    token = secrets.token_urlsafe(32)
+    expiry = datetime.now() + timedelta(hours=24)
+    active_sessions[token] = expiry
+    return token
+
+def verify_session(session_token: Optional[str] = Cookie(None)) -> bool:
+    """Verify if session token is valid"""
+    if not session_token:
+        return False
+    
+    expiry = active_sessions.get(session_token)
+    if not expiry:
+        return False
+    
+    if datetime.now() > expiry:
+        # Session expired
+        del active_sessions[session_token]
+        return False
+    
+    return True
+
+def require_auth(session_token: Optional[str] = Cookie(None)):
+    """Dependency to require authentication"""
+    if not verify_session(session_token):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return True
+
 # Models
 class UpdateCounterRequest(BaseModel):
     message_id: str  # String to preserve large integer precision
@@ -44,6 +82,10 @@ class CreateMessageRequest(BaseModel):
     ctfd_domain: Optional[str] = None
     ctfd_api_key: Optional[str] = None
     forum_channel_id: Optional[str] = None
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
 
 @app.on_event("startup")
 async def startup():
@@ -58,9 +100,37 @@ async def shutdown():
 # API Endpoints
 
 @app.get("/")
-async def root():
-    """Serve the main web interface"""
-    return FileResponse("/app/frontend/index.html")
+async def root(session_token: Optional[str] = Cookie(None)):
+    """Serve login page or main interface based on authentication"""
+    if verify_session(session_token):
+        return FileResponse("/app/frontend/index.html")
+    return FileResponse("/app/frontend/login.html")
+
+@app.post("/api/login")
+async def login(request: LoginRequest):
+    """Authenticate user and create session"""
+    if request.username == WEB_USERNAME and request.password == WEB_PASSWORD:
+        token = create_session()
+        response = JSONResponse({"status": "success", "message": "Login successful"})
+        response.set_cookie(
+            key="session_token",
+            value=token,
+            httponly=True,
+            max_age=86400,  # 24 hours
+            samesite="lax"
+        )
+        return response
+    else:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+
+@app.post("/api/logout")
+async def logout(session_token: Optional[str] = Cookie(None)):
+    """Logout user and invalidate session"""
+    if session_token and session_token in active_sessions:
+        del active_sessions[session_token]
+    response = JSONResponse({"status": "success", "message": "Logged out"})
+    response.delete_cookie("session_token")
+    return response
 
 @app.get("/api/health")
 async def health_check():
@@ -68,7 +138,7 @@ async def health_check():
     return {"status": "ok"}
 
 @app.get("/api/cache")
-async def get_cache():
+async def get_cache(authenticated: bool = Depends(require_auth)):
     """Get the entire cache from the bot"""
     response = await IPCClient.send_request("get_cache")
     if response.get("status") == "error":
@@ -76,7 +146,7 @@ async def get_cache():
     return response
 
 @app.get("/api/cache/{message_id}")
-async def get_cache_message(message_id: int):
+async def get_cache_message(message_id: int, authenticated: bool = Depends(require_auth)):
     """Get a specific message from cache"""
     response = await IPCClient.send_request("get_cache_message", message_id=message_id)
     if response.get("status") == "error":
@@ -84,7 +154,7 @@ async def get_cache_message(message_id: int):
     return response
 
 @app.post("/api/update-counter")
-async def update_counter(request: UpdateCounterRequest):
+async def update_counter(request: UpdateCounterRequest, authenticated: bool = Depends(require_auth)):
     """Update a counter value"""
     response = await IPCClient.send_request(
         "update_counter",
@@ -96,7 +166,7 @@ async def update_counter(request: UpdateCounterRequest):
     return response
 
 @app.post("/api/trigger-update")
-async def trigger_update():
+async def trigger_update(authenticated: bool = Depends(require_auth)):
     """Manually trigger leaderboard update"""
     response = await IPCClient.send_request("trigger_update")
     if response.get("status") == "error":
@@ -104,7 +174,7 @@ async def trigger_update():
     return response
 
 @app.post("/api/reload-cache")
-async def reload_cache():
+async def reload_cache(authenticated: bool = Depends(require_auth)):
     """Reload cache from database"""
     response = await IPCClient.send_request("reload_cache")
     if response.get("status") == "error":
@@ -112,7 +182,7 @@ async def reload_cache():
     return response
 
 @app.post("/api/create-message")
-async def create_message(request: CreateMessageRequest):
+async def create_message(request: CreateMessageRequest, authenticated: bool = Depends(require_auth)):
     """Create a new tracked message in a channel"""
     response = await IPCClient.send_request(
         "create_message",
@@ -128,7 +198,7 @@ async def create_message(request: CreateMessageRequest):
     return response
 
 @app.get("/api/tracked-messages")
-async def get_tracked_messages():
+async def get_tracked_messages(authenticated: bool = Depends(require_auth)):
     """Get all tracked messages from database"""
     messages = await db.get_tracked_messages(
         feature_type="ctf_leaderboard",
