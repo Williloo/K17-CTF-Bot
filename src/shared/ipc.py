@@ -6,12 +6,13 @@ Uses Unix domain sockets for fast, local communication between the bot and web A
 import asyncio
 import json
 import logging
+import os
 from typing import Any, Dict, Optional
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-SOCKET_PATH = "/tmp/k17_bot_ipc.sock"
+SOCKET_PATH = "/tmp/ipc/k17_bot_ipc.sock"
 
 class IPCServer:
     """IPC Server that runs in the bot process"""
@@ -22,6 +23,10 @@ class IPCServer:
         
     async def start(self):
         """Start the IPC server"""
+        # Ensure the directory exists
+        socket_dir = Path(SOCKET_PATH).parent
+        socket_dir.mkdir(parents=True, exist_ok=True)
+        
         # Remove existing socket if it exists
         try:
             Path(SOCKET_PATH).unlink()

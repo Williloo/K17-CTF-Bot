@@ -25,7 +25,7 @@ services:
       - .env
     volumes:
       - ./src/bot/logs:/app/bot/logs
-      - /tmp:/tmp  # Share IPC socket directory
+      - ipc_socket:/tmp/ipc  # Shared IPC socket directory
     depends_on:
       postgres:
         condition: service_healthy
@@ -42,7 +42,7 @@ services:
       - "8000:8000"
     volumes:
       - ./src:/app
-      - /tmp:/tmp  # Share IPC socket directory
+      - ipc_socket:/tmp/ipc  # Shared IPC socket directory
     depends_on:
       postgres:
         condition: service_healthy
@@ -52,3 +52,4 @@ services:
 
 volumes:
   postgres_data:
+  ipc_socket:
