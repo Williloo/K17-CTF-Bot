@@ -1,8 +1,14 @@
 import discord
 from discord.ext import commands, tasks
 import logging
+import sys
+import os
+
+# Add parent directory to path to import shared modules
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from features import *
+from shared.database import DatabaseManager
 
 logger = logging.getLogger(__name__)
 
@@ -12,20 +18,16 @@ class K17Bot(commands.Bot):
         intents.message_content = True
         
         super().__init__(command_prefix="!", intents=intents)
-        
-        # self.db_manager: Optional[DatabaseManager] = None
-        # self.reaction_manager: Optional[ReactionRoleManager] = None
-        # self.ipc: Optional[BotIPC] = None
     
     async def setup_hook(self):
         logger.info("🚀 Starting bot setup...")
         
-        # # Initialize database
-        # self.db_manager = DatabaseManager()
-        # await self.db_manager.connect()
+        # Initialize database
+        self.db_manager = DatabaseManager()
+        await self.db_manager.connect()
 
         self.monad_manager = MonadManager()
-        self.ctfd_manager = CTFLeaderboardManager(self)
+        self.ctfd_manager = CTFLeaderboardManager(self, self.db_manager)
         
         # # Load cogs
         # await self.load_extension('cogs.admin')
