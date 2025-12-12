@@ -25,9 +25,27 @@ services:
       - .env
     volumes:
       - ./src/bot/logs:/app/bot/logs
+      - /tmp:/tmp  # Share IPC socket directory
     depends_on:
       postgres:
         condition: service_healthy
+    restart: unless-stopped
+
+  web-api:
+    build: .
+    command: python -m uvicorn api.main:app --host 0.0.0.0 --port 8000
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app
+      - /tmp:/tmp  # Share IPC socket directory
+    depends_on:
+      postgres:
+        condition: service_healthy
+      discord-bot:
+        condition: service_started
     restart: unless-stopped
 
 volumes:

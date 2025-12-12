@@ -43,6 +43,7 @@ class DatabaseManager:
                     channel_id BIGINT NOT NULL,
                     guild_id BIGINT NOT NULL,
                     feature_type VARCHAR(50) NOT NULL,
+                    message_type VARCHAR(50) DEFAULT 'counter',
                     metadata JSONB,
                     is_active BOOLEAN DEFAULT true,
                     created_at TIMESTAMP DEFAULT NOW(),
@@ -93,25 +94,27 @@ class DatabaseManager:
         channel_id: int, 
         guild_id: int,
         feature_type: str,
+        message_type: str = 'counter',
         metadata: Optional[Dict[str, Any]] = None
     ) -> int:
         """Add a message to track for any feature"""
         query = """
             INSERT INTO tracked_messages 
-            (message_id, channel_id, guild_id, feature_type, metadata)
-            VALUES ($1, $2, $3, $4, $5)
+            (message_id, channel_id, guild_id, feature_type, message_type, metadata)
+            VALUES ($1, $2, $3, $4, $5, $6)
             ON CONFLICT (message_id) 
             DO UPDATE SET 
-                metadata = $5,
+                metadata = $6,
+                message_type = $5,
                 updated_at = NOW()
             RETURNING id
         """
         async with self.pool.acquire() as conn: # type: ignore
             row = await conn.fetchrow(
                 query, message_id, channel_id, guild_id, 
-                feature_type, json.dumps(metadata) if metadata else None
+                feature_type, message_type, json.dumps(metadata) if metadata else None
             )
-            logger.info(f"Tracked message {message_id} for {feature_type}")
+            logger.info(f"Tracked message {message_id} for {feature_type} (type: {message_type})")
             return row['id'] # type: ignore
     
     async def get_tracked_messages(
@@ -168,6 +171,16 @@ class DatabaseManager:
             await conn.execute(query, message_id)
             logger.info(f"Deactivated tracked message {message_id}")
     
+    async def delete_tracked_message(self, message_id: int):
+        """Permanently delete a tracked message from the database"""
+        query = """
+            DELETE FROM tracked_messages
+            WHERE message_id = $1
+        """
+        async with self.pool.acquire() as conn: # type: ignore
+            result = await conn.execute(query, message_id)
+            logger.info(f"Deleted tracked message {message_id}")
+            return result
 
     ## ==================== REACTION ROLES ====================
     ## TODO

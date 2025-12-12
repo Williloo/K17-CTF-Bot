@@ -9,11 +9,11 @@ def setup_logger(name: str = 'k17_bot') -> logging.Logger:
     
     # Configure root logger to capture all logs
     root_logger = logging.getLogger()
-    root_logger.setLevel(logging.INFO)
+    root_logger.setLevel(logging.DEBUG)
     
     # Create logger for the bot
     logger = logging.getLogger(name)
-    logger.setLevel(logging.INFO)
+    logger.setLevel(logging.DEBUG)
     
     # Create formatters
     file_formatter = logging.Formatter(
@@ -30,7 +30,7 @@ def setup_logger(name: str = 'k17_bot') -> logging.Logger:
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5
     )
-    file_handler.setLevel(logging.INFO)
+    file_handler.setLevel(logging.DEBUG)
     file_handler.setFormatter(file_formatter)
     
     # Console handler

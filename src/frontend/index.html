@@ -1,0 +1,563 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K17 CTF Bot - Control Panel</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            background: white;
+            border-radius: 10px;
+            padding: 20px 30px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .status {
+            display: inline-block;
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+
+        .status.online {
+            background: #10b981;
+            color: white;
+        }
+
+        .status.offline {
+            background: #ef4444;
+            color: white;
+        }
+
+        .controls {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .controls h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button.danger {
+            background: #ef4444;
+        }
+
+        button.danger:hover {
+            background: #dc2626;
+        }
+
+        .cache-view {
+            background: white;
+            border-radius: 10px;
+            padding: 20px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .cache-view h2 {
+            margin-bottom: 15px;
+            color: #333;
+        }
+
+        .message-card {
+            background: #f9fafb;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 15px;
+        }
+
+        .message-card h3 {
+            color: #667eea;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        .message-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-size: 12px;
+            color: #6b7280;
+            margin-bottom: 4px;
+        }
+
+        .info-value {
+            font-weight: 600;
+            color: #374151;
+        }
+
+        .counter-control {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-top: 10px;
+        }
+
+        .counter-control input {
+            padding: 8px 12px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            width: 100px;
+            font-size: 14px;
+        }
+
+        .counter-control button {
+            padding: 8px 16px;
+            font-size: 13px;
+        }
+
+        .notification {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 1000;
+            display: none;
+            max-width: 300px;
+        }
+
+        .notification.show {
+            display: block;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+
+        .notification.success {
+            border-left: 4px solid #10b981;
+        }
+
+        .notification.error {
+            border-left: 4px solid #ef4444;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px;
+            color: #6b7280;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #667eea;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 K17 CTF Bot Control Panel</h1>
+            <span class="status" id="bot-status">Checking...</span>
+        </header>
+
+        <div class="controls">
+            <h2>Quick Actions</h2>
+            <div class="button-group">
+                <button onclick="triggerUpdate()">🔄 Trigger Update</button>
+                <button onclick="reloadCache()">♻️ Reload Cache</button>
+                <button onclick="loadCache()">🔍 Refresh View</button>
+                <button onclick="showCreateMessageForm()">➕ Add New Message</button>
+            </div>
+        </div>
+
+        <div class="controls" id="create-message-form" style="display: none;">
+            <h2>Create New Tracked Message</h2>
+            <div style="display: flex; gap: 10px; align-items: flex-start; flex-wrap: wrap;">
+                <div style="display: flex; flex-direction: column; gap: 10px; flex: 1; min-width: 300px;">
+                    <input type="text" id="new-channel-id" placeholder="Channel ID" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px;">
+                    
+                    <select id="message-type" onchange="toggleMessageTypeFields()" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px;">
+                        <option value="counter">Counter</option>
+                        <option value="ctfd_tracker">CTFd Tracker</option>
+                    </select>
+                    
+                    <div id="counter-fields">
+                        <input type="number" id="new-initial-counter" placeholder="Initial Counter (default: 0)" value="0" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; width: 100%;">
+                    </div>
+                    
+                    <div id="ctfd-fields" style="display: none;">
+                        <input type="text" id="ctfd-domain" placeholder="CTFd Domain (e.g., ctf.example.com)" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; width: 100%;">
+                        <input type="text" id="ctfd-api-key" placeholder="CTFd API Key (optional)" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; width: 100%; margin-top: 10px;">
+                    </div>
+                    
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="createMessage()">Create Message</button>
+                        <button onclick="hideCreateMessageForm()" style="background: #6b7280;">Cancel</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="cache-view">
+            <h2>Tracked Messages</h2>
+            <div id="cache-container" class="loading">
+                Loading cache data...
+            </div>
+        </div>
+    </div>
+
+    <div class="notification" id="notification"></div>
+
+    <script>
+        let cacheData = {};
+
+        async function checkBotStatus() {
+            try {
+                const response = await fetch('/api/health');
+                const status = document.getElementById('bot-status');
+                if (response.ok) {
+                    status.className = 'status online';
+                    status.textContent = 'Bot Online';
+                } else {
+                    status.className = 'status offline';
+                    status.textContent = 'Bot Offline';
+                }
+            } catch (error) {
+                const status = document.getElementById('bot-status');
+                status.className = 'status offline';
+                status.textContent = 'API Offline';
+            }
+        }
+
+        async function loadCache() {
+            try {
+                const response = await fetch('/api/cache');
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    cacheData = result.data;
+                    renderCache();
+                    showNotification('Cache loaded successfully', 'success');
+                } else {
+                    showNotification('Failed to load cache: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('Error loading cache: ' + error.message, 'error');
+                document.getElementById('cache-container').innerHTML = 
+                    '<div class="empty-state">Failed to connect to bot. Is it running?</div>';
+            }
+        }
+
+        function renderCache() {
+            const container = document.getElementById('cache-container');
+            
+            if (Object.keys(cacheData).length === 0) {
+                container.innerHTML = '<div class="empty-state">No tracked messages found</div>';
+                return;
+            }
+
+            let html = '';
+            for (const [messageId, data] of Object.entries(cacheData)) {
+                const counter = data.metadata?.counter || 0;
+                const messageIdStr = String(messageId);
+                const messageType = data.message_type || 'counter';
+                const ctfdDomain = data.metadata?.ctfd_domain || 'N/A';
+                
+                html += `
+                    <div class="message-card">
+                        <h3>Message ${messageIdStr}</h3>
+                        <div class="message-info">
+                            <div class="info-item">
+                                <span class="info-label">Type</span>
+                                <span class="info-value">${messageType}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Channel ID</span>
+                                <span class="info-value">${data.channel_id}</span>
+                            </div>
+                            <div class="info-item">
+                                <span class="info-label">Guild ID</span>
+                                <span class="info-value">${data.guild_id}</span>
+                            </div>
+                            ${messageType === 'counter' ? `
+                            <div class="info-item">
+                                <span class="info-label">Counter</span>
+                                <span class="info-value">${counter}</span>
+                            </div>
+                            ` : ''}
+                            ${messageType === 'ctfd_tracker' ? `
+                            <div class="info-item">
+                                <span class="info-label">CTFd Domain</span>
+                                <span class="info-value">${ctfdDomain}</span>
+                            </div>
+                            ` : ''}
+                        </div>
+                        ${messageType === 'counter' ? `
+                        <div class="counter-control">
+                            <input type="number" id="counter-${messageIdStr}" value="${counter}" min="0">
+                            <button onclick="updateCounter('${messageIdStr}')">Update Counter</button>
+                        </div>
+                        ` : ''}
+                        <div class="counter-control" style="margin-top: 10px;">
+                            <button onclick="deleteMessage('${messageIdStr}')" style="background: #ef4444;">Delete Message</button>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        async function deleteMessage(messageId) {
+            if (!confirm('Are you sure you want to delete this tracked message? This will also delete it from Discord.')) {
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/delete-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message_id: String(messageId),
+                        delete_discord_message: true
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    showNotification('Message deleted successfully', 'success');
+                    loadCache();
+                } else {
+                    showNotification('Failed to delete message: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('Error deleting message: ' + error.message, 'error');
+            }
+        }
+
+        async function updateCounter(messageId) {
+            const input = document.getElementById(`counter-${messageId}`);
+            const value = parseInt(input.value);
+
+            try {
+                const response = await fetch('/api/update-counter', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        message_id: String(messageId),
+                        value: value
+                    })
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    showNotification(`Counter updated to ${value}`, 'success');
+                    loadCache();
+                } else {
+                    showNotification('Failed to update counter: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('Error updating counter: ' + error.message, 'error');
+            }
+        }
+
+        async function triggerUpdate() {
+            try {
+                const response = await fetch('/api/trigger-update', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showNotification('Leaderboard update triggered!', 'success');
+                    setTimeout(loadCache, 1000);
+                } else {
+                    showNotification('Failed to trigger update: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('Error triggering update: ' + error.message, 'error');
+            }
+        }
+
+        async function reloadCache() {
+            try {
+                const response = await fetch('/api/reload-cache', { method: 'POST' });
+                const result = await response.json();
+                
+                if (result.status === 'success') {
+                    showNotification('Cache reloaded from database!', 'success');
+                    loadCache();
+                } else {
+                    showNotification('Failed to reload cache: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('Error reloading cache: ' + error.message, 'error');
+            }
+        }
+
+        function showNotification(message, type) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.className = `notification ${type} show`;
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+
+        function showCreateMessageForm() {
+            document.getElementById('create-message-form').style.display = 'block';
+        }
+
+        function hideCreateMessageForm() {
+            document.getElementById('create-message-form').style.display = 'none';
+            document.getElementById('new-channel-id').value = '';
+            document.getElementById('new-initial-counter').value = '0';
+            document.getElementById('message-type').value = 'counter';
+            document.getElementById('ctfd-domain').value = '';
+            toggleMessageTypeFields();
+        }
+
+        function toggleMessageTypeFields() {
+            const messageType = document.getElementById('message-type').value;
+            const counterFields = document.getElementById('counter-fields');
+            const ctfdFields = document.getElementById('ctfd-fields');
+            
+            if (messageType === 'counter') {
+                counterFields.style.display = 'block';
+                ctfdFields.style.display = 'none';
+            } else if (messageType === 'ctfd_tracker') {
+                counterFields.style.display = 'none';
+                ctfdFields.style.display = 'block';
+            }
+        }
+
+        async function createMessage() {
+            const channelIdStr = document.getElementById('new-channel-id').value.trim();
+            const messageType = document.getElementById('message-type').value;
+
+            if (!channelIdStr) {
+                showNotification('Please enter a valid channel ID', 'error');
+                return;
+            }
+
+            let requestBody = {
+                channel_id: channelIdStr,
+                message_type: messageType
+            };
+
+            if (messageType === 'counter') {
+                requestBody.initial_counter = parseInt(document.getElementById('new-initial-counter').value);
+            } else if (messageType === 'ctfd_tracker') {
+                const ctfdDomain = document.getElementById('ctfd-domain').value.trim();
+                if (!ctfdDomain) {
+                    showNotification('Please enter a CTFd domain', 'error');
+                    return;
+                }
+                requestBody.ctfd_domain = ctfdDomain;
+                
+                const ctfdApiKey = document.getElementById('ctfd-api-key').value.trim();
+                if (ctfdApiKey) {
+                    requestBody.ctfd_api_key = ctfdApiKey;
+                }
+            }
+
+            try {
+                const response = await fetch('/api/create-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                const result = await response.json();
+                if (result.status === 'success') {
+                    showNotification(`Message created successfully! ID: ${result.data.message_id}`, 'success');
+                    hideCreateMessageForm();
+                    loadCache();
+                } else {
+                    showNotification('Failed to create message: ' + result.message, 'error');
+                }
+            } catch (error) {
+                showNotification('Error creating message: ' + error.message, 'error');
+            }
+        }
+
+        // Initialize
+        checkBotStatus();
+        loadCache();
+        setInterval(checkBotStatus, 30000); // Check every 30 seconds
+    </script>
+</body>
+</html>

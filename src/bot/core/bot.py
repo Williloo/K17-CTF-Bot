@@ -3,12 +3,14 @@ from discord.ext import commands, tasks
 import logging
 import sys
 import os
+import asyncio
 
 # Add parent directory to path to import shared modules
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', '..'))
 
 from features import *
 from shared.database import DatabaseManager
+from shared.ipc import IPCServer
 
 logger = logging.getLogger(__name__)
 
@@ -29,12 +31,9 @@ class K17Bot(commands.Bot):
         self.monad_manager = MonadManager()
         self.ctfd_manager = CTFLeaderboardManager(self, self.db_manager)
         
-        # # Load cogs
-        # await self.load_extension('cogs.admin')
-        
-        # # Start IPC server
-        # self.ipc = BotIPC(self)
-        # self.loop.create_task(self.ipc.start())
+        # Start IPC server for web interface communication
+        self.ipc = IPCServer(self.ctfd_manager)
+        asyncio.create_task(self.ipc.start())
         
         # Start background tasks
         self.minute_task.start()
