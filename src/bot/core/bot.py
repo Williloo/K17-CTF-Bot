@@ -1,5 +1,5 @@
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
 
 from features import *
 
@@ -22,6 +22,7 @@ class K17Bot(commands.Bot):
         # await self.db_manager.connect()
 
         self.monad_manager = MonadManager()
+        self.ctfd_manager = CTFLeaderboardManager(self)
         
         # # Load cogs
         # await self.load_extension('cogs.admin')
@@ -30,13 +31,18 @@ class K17Bot(commands.Bot):
         # self.ipc = BotIPC(self)
         # self.loop.create_task(self.ipc.start())
         
+        # Start background tasks
+        self.minute_task.start()
+        
         print("Bot setup complete!")
     
+    ## On Ready Event
     async def on_ready(self):
         print(f"✅ {self.user} is now online!")
         print(f"Connected to {len(self.guilds)} guilds")
         print(f"Bot ID: {self.user.id}") # type: ignore
 
+    ## On Message Event
     async def on_message(self, message: discord.Message):
         if message.author == self.user:
             return
@@ -46,3 +52,16 @@ class K17Bot(commands.Bot):
         
         if message.content.startswith("!hello"):
             await self.monad_manager.handle_hello(message)
+
+    ## On minute task
+    @tasks.loop(minutes=1)
+    async def minute_task(self):
+        print("🕐 Minute task triggered")
+        
+        await self.ctfd_manager.update_leaderboards()
+    
+    ## Pre Minute Task
+    @minute_task.before_loop
+    async def before_minute_task(self):
+        await self.wait_until_ready()
+        await self.ctfd_manager.initialize()

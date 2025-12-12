@@ -3,8 +3,10 @@
 
 from .Monad import MonadManager
 from .ReactionRole import ReactionRoleManager
+from .CTFLeaderboardManager import CTFLeaderboardManager
 
 __all__ = [
     "MonadManager",
-    "ReactionRoleManager"
+    "ReactionRoleManager",
+    "CTFLeaderboardManager"
 ]
