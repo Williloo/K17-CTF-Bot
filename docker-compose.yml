@@ -1,0 +1,10 @@
+version: '3.9'
+
+services:
+  discord-bot:
+    build: .
+    env_file:
+      - .env
+    volumes:
+      - ./src/bot/logs:/app/bot/logs
+    restart: unless-stopped
