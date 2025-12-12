@@ -2,13 +2,16 @@ import logging
 from logging.handlers import RotatingFileHandler
 import os
 
-def setup_logger(name: str = 'k17_bot') -> logging.Logger:
-    """Setup a logger with file and console handlers"""
-    
+def setup_logger(name: str = 'k17_bot') -> logging.Logger:    
     # Create logs directory if it doesn't exist
-    os.makedirs('logs', exist_ok=True)
+    log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+    os.makedirs(log_dir, exist_ok=True)
     
-    # Create logger
+    # Configure root logger to capture all logs
+    root_logger = logging.getLogger()
+    root_logger.setLevel(logging.INFO)
+    
+    # Create logger for the bot
     logger = logging.getLogger(name)
     logger.setLevel(logging.INFO)
     
@@ -23,7 +26,7 @@ def setup_logger(name: str = 'k17_bot') -> logging.Logger:
     
     # File handler (rotating)
     file_handler = RotatingFileHandler(
-        'logs/bot.log',
+        os.path.join(log_dir, 'bot.log'),
         maxBytes=10*1024*1024,  # 10MB
         backupCount=5
     )
@@ -35,8 +38,8 @@ def setup_logger(name: str = 'k17_bot') -> logging.Logger:
     console_handler.setLevel(logging.INFO)
     console_handler.setFormatter(console_formatter)
     
-    # Add handlers
-    logger.addHandler(file_handler)
-    logger.addHandler(console_handler)
+    # Add handlers to root logger so all loggers inherit them
+    root_logger.addHandler(file_handler)
+    root_logger.addHandler(console_handler)
     
     return logger

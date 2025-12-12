@@ -1,7 +1,10 @@
 import discord
 from discord.ext import commands, tasks
+import logging
 
 from features import *
+
+logger = logging.getLogger(__name__)
 
 class K17Bot(commands.Bot):
     def __init__(self):
@@ -15,7 +18,7 @@ class K17Bot(commands.Bot):
         # self.ipc: Optional[BotIPC] = None
     
     async def setup_hook(self):
-        print("🚀 Starting bot setup...")
+        logger.info("🚀 Starting bot setup...")
         
         # # Initialize database
         # self.db_manager = DatabaseManager()
@@ -34,13 +37,13 @@ class K17Bot(commands.Bot):
         # Start background tasks
         self.minute_task.start()
         
-        print("Bot setup complete!")
+        logger.info("Bot setup complete!")
     
     ## On Ready Event
     async def on_ready(self):
-        print(f"✅ {self.user} is now online!")
-        print(f"Connected to {len(self.guilds)} guilds")
-        print(f"Bot ID: {self.user.id}") # type: ignore
+        logger.info(f"✅ {self.user} is now online!")
+        logger.info(f"Connected to {len(self.guilds)} guilds")
+        logger.info(f"Bot ID: {self.user.id}") # type: ignore
 
     ## On Message Event
     async def on_message(self, message: discord.Message):
@@ -48,7 +51,7 @@ class K17Bot(commands.Bot):
             return
         
         ## Debug only
-        print(f"Message from {message.author}: {message.content}")
+        logger.debug(f"Message from {message.author}: {message.content}")
         
         if message.content.startswith("!hello"):
             await self.monad_manager.handle_hello(message)
@@ -56,7 +59,7 @@ class K17Bot(commands.Bot):
     ## On minute task
     @tasks.loop(minutes=1)
     async def minute_task(self):
-        print("🕐 Minute task triggered")
+        logger.info("🕐 Minute task triggered")
         
         await self.ctfd_manager.update_leaderboards()
     
