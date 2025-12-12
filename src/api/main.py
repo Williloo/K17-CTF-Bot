@@ -43,6 +43,7 @@ class CreateMessageRequest(BaseModel):
     initial_counter: int = 0
     ctfd_domain: Optional[str] = None
     ctfd_api_key: Optional[str] = None
+    forum_channel_id: Optional[str] = None
 
 @app.on_event("startup")
 async def startup():
@@ -119,7 +120,8 @@ async def create_message(request: CreateMessageRequest):
         message_type=request.message_type,
         initial_counter=request.initial_counter,
         ctfd_domain=request.ctfd_domain,
-        ctfd_api_key=request.ctfd_api_key
+        ctfd_api_key=request.ctfd_api_key,
+        forum_channel_id=int(request.forum_channel_id) if request.forum_channel_id else 0
     )
     if response.get("status") == "error":
         raise HTTPException(status_code=500, detail=response.get("message"))

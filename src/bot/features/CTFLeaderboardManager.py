@@ -25,14 +25,13 @@ CTFD_TRACKER_TEMPLATE = """
 * Position:     {position} 
 * Challenges:   {solved_rate}
 
-In-Progress:
-{progress}
+In-Progress:{progress}
 Solves:
 {solves}
 ```
 """
 
-def format_leaderboard_entry(ctfd_domain, api_key=None) -> str:
+def format_leaderboard_entry(ctfd_domain, api_key=None, forum_channel=None) -> str:
     api_url = f"{ctfd_domain}api/v1/"
     
     headers = {}
@@ -68,11 +67,23 @@ def format_leaderboard_entry(ctfd_domain, api_key=None) -> str:
     for challenge in solved_challs:
         solves += f"\t* {challenge['name']}\n"
 
-    # progress=""
-    # for name in ["pwn1", "pwn2", "web1", "crypto1", "rev1"]:
-    #     progress += f"\t* {name}\n"
-
-    progress = ""
+    # Get in-progress challenges from forum posts
+    progress = "\n"
+    if forum_channel and isinstance(forum_channel, discord.ForumChannel):
+        logger.debug(f"Forum channel found: {forum_channel.name} (ID: {forum_channel.id})")
+        logger.debug(f"Total threads in channel: {len(forum_channel.threads)}")
+        
+        # Get all active threads (forum posts)
+        for thread in forum_channel.threads:
+            logger.debug(f"Thread: {thread.name} | Archived: {thread.archived} | ID: {thread.id}")
+            if not thread.archived:
+                if "SOLVED" in thread.name.upper():
+                    continue
+                progress += f"\t* {thread.name}\n"
+        
+        logger.debug(f"Active threads found: {progress.count('*')}")
+    else:
+        logger.debug(f"Forum channel issue - Channel: {forum_channel}, Type: {type(forum_channel)}")
 
     return CTFD_TRACKER_TEMPLATE.format(
         position=position,
@@ -181,13 +192,19 @@ class CTFLeaderboardManager:
                     logger.debug(f"Updated message {message_id} to count {new_count}")
                 
                 elif message_type == 'ctfd_tracker':
-                    # Get CTFd domain and API key from metadata
+                    # Get CTFd domain, API key, and forum channel from metadata
                     metadata = data['metadata']
                     ctfd_domain = metadata.get('ctfd_domain', '')
                     api_key = metadata.get('api_key')
+                    forum_channel_id = metadata.get('forum_channel_id')
+                    
+                    # Get forum channel if configured
+                    forum_channel = None
+                    if forum_channel_id:
+                        forum_channel = self.bot.get_channel(forum_channel_id)
                     
                     # Generate formatted leaderboard content
-                    formatted_content = format_leaderboard_entry(ctfd_domain, api_key)
+                    formatted_content = format_leaderboard_entry(ctfd_domain, api_key, forum_channel)
                     
                     # Update message
                     await message.edit(content=formatted_content)
@@ -244,7 +261,7 @@ class CTFLeaderboardManager:
     
     async def create_tracked_message(self, channel_id: int, message_type: str = 'counter', 
                                      initial_counter: int = 0, ctfd_domain: str = "", 
-                                     ctfd_api_key: str = "") -> dict:
+                                     ctfd_api_key: str = "", forum_channel_id: int = 0) -> dict:
         """Create a new tracked message in a specified channel"""
         try:
             channel = self.bot.get_channel(channel_id)
@@ -261,12 +278,19 @@ class CTFLeaderboardManager:
                 if not ctfd_domain:
                     return {"success": False, "error": "CTFd domain is required for ctfd_tracker type"}
                 
+                # Get forum channel if provided
+                forum_channel = None
+                if forum_channel_id:
+                    forum_channel = self.bot.get_channel(forum_channel_id)
+                
                 # Generate formatted leaderboard content
-                initial_message = format_leaderboard_entry(ctfd_domain, ctfd_api_key or None)
+                initial_message = format_leaderboard_entry(ctfd_domain, ctfd_api_key or None, forum_channel)
                 msg = await channel.send(initial_message)
                 metadata = {"ctfd_domain": ctfd_domain}
                 if ctfd_api_key:
                     metadata["api_key"] = ctfd_api_key
+                if forum_channel_id:
+                    metadata["forum_channel_id"] = forum_channel_id # type: ignore
             else:
                 return {"success": False, "error": f"Unknown message type: {message_type}"}
             

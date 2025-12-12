@@ -257,6 +257,7 @@
                     <div id="ctfd-fields" style="display: none;">
                         <input type="text" id="ctfd-domain" placeholder="CTFd Domain (e.g., ctf.example.com)" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; width: 100%;">
                         <input type="text" id="ctfd-api-key" placeholder="CTFd API Key (optional)" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; width: 100%; margin-top: 10px;">
+                        <input type="text" id="forum-channel-id" placeholder="Forum Channel ID (for in-progress challenges)" style="padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 4px; font-size: 14px; width: 100%; margin-top: 10px;">
                     </div>
                     
                     <div style="display: flex; gap: 10px;">
@@ -529,6 +530,11 @@
                 const ctfdApiKey = document.getElementById('ctfd-api-key').value.trim();
                 if (ctfdApiKey) {
                     requestBody.ctfd_api_key = ctfdApiKey;
+                }
+                
+                const forumChannelId = document.getElementById('forum-channel-id').value.trim();
+                if (forumChannelId) {
+                    requestBody.forum_channel_id = forumChannelId;
                 }
             }
 

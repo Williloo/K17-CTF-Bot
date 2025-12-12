@@ -104,9 +104,10 @@ class IPCServer:
             initial_counter = request.get("initial_counter", 0)
             ctfd_domain = request.get("ctfd_domain")
             ctfd_api_key = request.get("ctfd_api_key")
+            forum_channel_id = request.get("forum_channel_id", 0)
             
             result = await self.ctf_manager.create_tracked_message(
-                channel_id, message_type, initial_counter, ctfd_domain, ctfd_api_key
+                channel_id, message_type, initial_counter, ctfd_domain, ctfd_api_key, forum_channel_id
             )
             if result.get("success"):
                 return {"status": "success", "data": result}
