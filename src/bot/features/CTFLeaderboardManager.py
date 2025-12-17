@@ -25,9 +25,10 @@ CTFD_TRACKER_TEMPLATE = """
 * Position:     {position} 
 * Challenges:   {solved_rate}
 
-In-Progress:{progress}
 Solves:
 {solves}
+In-Progress:
+{progress}
 ```
 """
 
@@ -64,22 +65,32 @@ def format_leaderboard_entry(ctfd_domain, api_key=None, forum_channel=None) -> s
     solved_rate=f"{solved_count}/{len(challenges)}"
 
     solves=""
-    for challenge in solved_challs:
-        solves += f"\t* {challenge['name']}\n"
+    prev_tag = ""
+    for challenge in sorted(solved_challs, key = lambda x: x['category']):
+        if challenge['category'].upper() != prev_tag:
+            prev_tag = challenge['category'].upper()
+            solves += f"\t[{prev_tag}]\n"
+        solves += f"\t\t* {challenge['name']}\n"
 
     # Get in-progress challenges from forum posts
-    progress = "\n"
+    progress = ""
     if forum_channel and isinstance(forum_channel, discord.ForumChannel):
         logger.debug(f"Forum channel found: {forum_channel.name} (ID: {forum_channel.id})")
         logger.debug(f"Total threads in channel: {len(forum_channel.threads)}")
         
         # Get all active threads (forum posts)
-        for thread in forum_channel.threads:
+        prev_tag = ""
+        for thread in sorted(forum_channel.threads, key = lambda x: x.name):
             logger.debug(f"Thread: {thread.name} | Archived: {thread.archived} | ID: {thread.id}")
             if not thread.archived:
                 if "SOLVED" in thread.name.upper():
                     continue
-                progress += f"\t* {thread.name}\n"
+                parsed = thread.name.split(" ")
+                myname = " ".join(parsed[1:])
+                if parsed[0].upper() != prev_tag:
+                    prev_tag = parsed[0].upper()
+                    progress += f"\t{prev_tag}\n"
+                progress += f"\t\t* {myname}\n"
         
         logger.debug(f"Active threads found: {progress.count('*')}")
     else:
